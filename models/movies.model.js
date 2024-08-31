@@ -1,16 +1,5 @@
-import mysql from 'mysql2/promise'
 import crypto from 'node:crypto'
-
-const config = {
-  host: 'localhost',
-  user: 'root',
-  password: '123456',
-  port: '3306',
-  database: 'moviesdb'
-  // connectionLimit: 10 -> Si no se especifica, por defecto será 10
-}
-
-const pool = mysql.createPool(config)
+import { pool } from '../config/db.js'
 
 export class MoviesModel {
   static async getAll ({ genre }) {
@@ -109,7 +98,23 @@ export class MoviesModel {
   }
 
   static async delete ({ id }) {
+    try {
+      // Eliminamos la película de la tabla movie_genres
+      const [result1] = await pool.query('DELETE FROM movie_genres WHERE movie_id = ?', [id])
 
+      if (result1.affectedRows === 0) return null
+
+      // Eliminamos la película de la tabla movie
+      const [result2] = await pool.query('DELETE FROM movie WHERE id = ?', [id])
+
+      if (result2.affectedRows === 0) return null
+
+      // Si queremos que se devuelva la Película eliminada, debemos hacer un SELECT
+      return true
+    } catch (err) {
+      console.log('', err.message)
+      throw err
+    }
   }
 
   static async partiallyUpdate ({ id, validatedData }) {

@@ -84,5 +84,3 @@ export class MoviesController {
     res.status(200).json({ message: `Se actualizó completamente la película ${id}` })
   }
 }
-
-// HAY QUE PASAR ACÁ A TODAS LAS FUNCIOES DE LAS RUTAS
