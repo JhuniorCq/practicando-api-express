@@ -29,6 +29,8 @@ export class MoviesController {
     // Si los datos son válidos:
     const newMovie = await MoviesModel.create({ validatedData })
 
+    if (!newMovie) return res.status(400).json({ message: 'Error inserting movie' })
+
     res.status(201).json(newMovie)
   }
 

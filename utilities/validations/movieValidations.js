@@ -1,10 +1,8 @@
-import crypto from 'node:crypto'
-
 // Validaciones para POST
 export const validationsCreateMovie = (data) => {
   const errors = []
 
-  // Desestructuramos solo las propiedades que nos interesan
+  // Desestructuramos solo las propiedades que nos interesan (así evitamos datos innecesarios (como un SQL Injection))
   const { title, year, director, duration, poster, rate, genre } = data
 
   // Validaciones para cada dato
@@ -39,11 +37,9 @@ export const validationsCreateMovie = (data) => {
   // Si hubo algún error, retornamos un objeto con los errores
   if (errors.length > 0) return { errors }
 
-  // Si no hay errores, generamos un ID y retornamos el objeto válido
-  const id = crypto.randomUUID()
+  // Si no hay errores, retornamos el objeto válido
 
   return {
-    id,
     title,
     year,
     director,

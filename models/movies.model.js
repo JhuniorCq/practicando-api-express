@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise'
+import crypto from 'node:crypto'
 
 const config = {
   host: 'localhost',
@@ -39,6 +40,7 @@ export class MoviesModel {
       return movies
     } catch (err) {
       console.error('Error getting movies: ', err.message)
+      throw err
     }
   }
 
@@ -52,13 +54,13 @@ export class MoviesModel {
       return movie[0]
     } catch (err) {
       console.log('Error getting movie', err.message)
+      throw err
     }
   }
 
   static async create ({ validatedData }) {
     try {
       const {
-        id,
         title,
         year,
         director,
@@ -68,19 +70,41 @@ export class MoviesModel {
         genre
       } = validatedData
 
+      const id = crypto.randomUUID()
+
       // Insertamos la película en la Base de Datos
       const [result] = await pool.query('INSERT INTO movie (id, title, year, director, duration, poster, rate) VALUES (?, ?, ?, ?, ?, ?, ?)', [
         id, title, year, director, duration, poster, rate
       ])
-
-      console.log('Resultados de insertar en la Tabla: "movie"', result)
+      // Si el affectRows es 0 quiere decir que NO hubo ninguna fila afectada
+      if (result.affectedRows === 0) return null
 
       // Verificamos la existencia de los géneros de las películas y obtenemos sus IDs registrados en la BD
-      console.log(genre)
+      const genreIds = []
+
+      for (const genreName of genre) {
+        const [result] = await pool.query('SELECT id FROM genre WHERE LOWER(name) = ?', [genreName.toLowerCase()])
+
+        // Esto de que si NO existe el género puede ir en las Validaciones, pero hariamos un SELECT a todos los géneros para validar eso
+        if (result.length === 0) return null
+
+        genreIds.push(result[0].id)
+      }
+
       // Insertamos el ID de las Películas y el ID de sus Géneros en la tabla movie_genres
-      // const [result2] = await pool.query('INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)', [])
+      for (const genreId of genreIds) {
+        await pool.query('INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)', [id, genreId])
+      }
+
+      // Obtenemos la película insertada usando su ID
+      const [movie] = await pool.query('SELECT * FROM movie WHERE id = ?', [id])
+
+      if (movie.length === 0) return null
+
+      return movie[0]
     } catch (err) {
       console.error('', err.message)
+      throw err
     }
   }
 
