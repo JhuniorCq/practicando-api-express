@@ -1,54 +1,43 @@
-// Validaciones para POST
-export const validationsCreateMovie = (data) => {
-  const errors = []
+import { z } from "zod";
+import { ALLOWED_GENRES } from "../getGenres.js";
 
-  // Desestructuramos solo las propiedades que nos interesan (así evitamos datos innecesarios (como un SQL Injection))
-  const { title, year, director, duration, poster, rate, genre } = data
+// Aunque acá solo podría VALIDAR que el ARRAY es de STRNGS, y ya en el MODELO VALIDAR si los géneros existen en la BD
 
-  // Validaciones para cada dato
-  if (!title || typeof title !== 'string' || title.length > 255) {
-    errors.push('Title is required and must be a string of max 255 characters.')
-  }
+const movieSchema = z.object({
+  title: z.string({ message: "El título debe ser una cadena de texto." }),
+  year: z
+    .number({ message: "El año debe ser un número." })
+    .int({ message: "El año debe ser un número entero." })
+    .min(1900, { message: "El año debe ser como mínimo 1900." })
+    .max(2024, { message: "El año debe ser como máximo 2024." }),
+  director: z.string({ message: "El director debe ser una cadena de texto." }),
+  duration: z
+    .number({ message: "La duración debe ser un número." })
+    .int({ message: "La duración debe ser un número entero." })
+    .positive({ message: "La duración debe ser un número entero positivo." }),
+  poster: z
+    .string({ message: "La URL debe ser una cadena de texto." })
+    .url({ message: "Ingrese correctamente la URL." }),
+  rate: z
+    .number({ message: "La calificación debe ser un número" })
+    .min(0, { message: "La calificación debe ser como mínimo 0." })
+    .max(10, { message: "La calificación debe ser como máximo 10." }),
+  genre: z
+    .array(
+      z.string({ message: "Todos los géneros deben ser cadenas de texto." })
+    )
+    .refine(
+      (genres) => genres.every((g) => ALLOWED_GENRES.includes(g.toLowerCase())),
+      { message: "Uno de los géneros no está permitido." }
+    ),
+});
 
-  if (!year || typeof year !== 'number' || year < 1800 || year > new Date().getFullYear()) {
-    errors.push('Year is required and must be a valid number between 1800 and the current year.')
-  }
+// Función para VALIDAR el CUERPO de una Solicitud POST o PUT
+export const validateMovie = (object) => {
+  return movieSchema.safeParse(object);
+};
 
-  if (!director || typeof director !== 'string' || director.length > 255) {
-    errors.push('Director is required and must be a string of max 255 characters.')
-  }
-
-  if (!duration || typeof duration !== 'number' || duration <= 0) {
-    errors.push('Duration is required and must be a positive number.')
-  }
-
-  if (!poster || typeof poster !== 'string' || !poster.startsWith('http')) {
-    errors.push('Poster is required and must be a valid URL.')
-  }
-
-  if (!rate || typeof rate !== 'number' || rate < 0 || rate > 10) {
-    errors.push('Rate is required and must be a number between 0 and 10.')
-  }
-
-  if (!Array.isArray(genre) || genre.length === 0 || !genre.every(g => typeof g === 'string')) {
-    errors.push('Genre is required and must be an array of strings.')
-  }
-
-  // Si hubo algún error, retornamos un objeto con los errores
-  if (errors.length > 0) return { errors }
-
-  // Si no hay errores, retornamos el objeto válido
-
-  return {
-    title,
-    year,
-    director,
-    duration,
-    poster,
-    rate,
-    genre
-  }
-}
-// Validaciones para PUT
-
-// Validaciones para PATCH
+// Función para VALIDAR el CUERPO de una Solicitud PATCH
+export const validatePartialMovie = (object) => {
+  return movieSchema.partial().safeParse(object);
+};
