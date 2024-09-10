@@ -31,3 +31,5 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
+
+// Dato: cors() -> Devuelve uns instancia que es un Middleware -> Por ejemplo: cors() devuelve "cors", igualmente con morgan() -> morgan() devuelve "morgan" -> Tanto "cors" como "morgan" son Middlewares (osea funciones) devueltos por las funciones cors() y morgan() respectivamente
