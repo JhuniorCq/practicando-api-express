@@ -5,7 +5,7 @@ import {
 } from "../utilities/validations/movieValidations.js";
 
 export class MoviesController {
-  static async getAll(req, res) {
+  static async getAll(req, res, next) {
     try {
       const { genre } = req.query;
       const movies = await MoviesModel.getAll({ genre });
@@ -14,24 +14,24 @@ export class MoviesController {
       // Un JSON puede contar como una vista, así como un HTML
       res.status(200).json(movies);
     } catch (error) {
-      console.error("", error.message);
-      res.status(500).json({ message: error.message });
+      console.error("Error en getAll de movies.controller.js");
+      next(error);
     }
   }
 
-  static async getById(req, res) {
+  static async getById(req, res, next) {
     try {
       const { id } = req.params;
       const movie = await MoviesModel.getById({ id });
-      if (!movie) return res.status(404).json({ message: "Movie not found" });
+
       res.status(200).json(movie);
     } catch (error) {
-      console.error("", error.message);
-      res.status(500).json({ message: error.message });
+      console.error("Error en getById de movies.controller.js");
+      next(error);
     }
   }
 
-  static async create(req, res) {
+  static async create(req, res, next) {
     try {
       // Acá lo Primer que debemos hacer es VALIDAR los Datos, luego ya almacenamos los datos en una BD
       const validatedData = validateMovie(req.body);
@@ -59,7 +59,7 @@ export class MoviesController {
     }
   }
 
-  static async delete(req, res) {
+  static async delete(req, res, next) {
     try {
       const { id } = req.params;
       const result = await MoviesModel.delete({ id });
@@ -71,7 +71,7 @@ export class MoviesController {
     }
   }
 
-  static async partiallyUpdate(req, res) {
+  static async partiallyUpdate(req, res, next) {
     try {
       const validatedData = validatePartialMovie(req.body);
 
@@ -103,7 +103,7 @@ export class MoviesController {
     }
   }
 
-  static async fullyUpdate(req, res) {
+  static async fullyUpdate(req, res, next) {
     try {
       const validatedData = validateMovie(req.body);
 

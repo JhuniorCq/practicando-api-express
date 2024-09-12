@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { pool } from "../config/db.js";
+import { addMovieGenres } from "../utilities/validations/addMovieGenres.js";
 
 export class MoviesModel {
   static async getAll({ genre }) {
@@ -12,6 +13,7 @@ export class MoviesModel {
           "SELECT id, name FROM genre WHERE LOWER(name) = ?",
           [lowerCaseGenre]
         );
+        console.log(genreData);
 
         if (genreData.length === 0) return [];
 
@@ -19,7 +21,7 @@ export class MoviesModel {
         const [{ name }] = genreData;
         const [movies] = await pool.query(
           `
-            SELECT m.*, g.name as genre FROM movie m
+            SELECT m.* FROM movie m
             INNER JOIN movie_genres mg ON m.id = mg.movie_id
             INNER JOIN genre g ON mg.genre_id = g.id
             WHERE LOWER(g.name) = ?
@@ -27,14 +29,17 @@ export class MoviesModel {
           [name]
         );
 
+        if (movies.length !== 0) await addMovieGenres(movies);
+
         return movies;
       }
 
+      // Agregar los géneros a estas películas
       const [movies] = await pool.query("SELECT * FROM movie");
-      console.log(movies);
+      await addMovieGenres(movies);
       return movies;
     } catch (err) {
-      console.error("Error en getAll de movies.model.js ", err.message);
+      console.error("Error en getAll de movies.model.js ");
       throw err;
     }
   }
@@ -46,7 +51,11 @@ export class MoviesModel {
       ]);
       console.log(movie);
       // Si la película no existe:
-      if (movie.length === 0) return null;
+      if (movie.length === 0) {
+        const error = new Error("Película no encontrada.");
+        error.statusCode = 404;
+        throw error;
+      }
 
       return movie[0];
     } catch (err) {

@@ -1,5 +1,5 @@
 // Puerto para el Servidor
-export const PORT = process.env.PORT ?? 1234;
+export const PORT = process.env.PORT ?? 3000;
 
 // Constantes para la BD
 export const DB_HOST = process.env.DB_HOST ?? "localhost";
