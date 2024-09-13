@@ -65,19 +65,15 @@ export class MoviesModel {
   }
 
   static async create({ validatedData }) {
+    const connection = await pool.getConnection(); // Obtengo una conexión del pool
     try {
       const { title, year, director, duration, poster, rate, genre } =
         validatedData;
 
       const id = crypto.randomUUID();
 
-      // Insertamos la película en la Base de Datos
-      const [result] = await pool.query(
-        "INSERT INTO movie (id, title, year, director, duration, poster, rate) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [id, title, year, director, duration, poster, rate]
-      );
-      // Si el affectRows es 0 quiere decir que NO hubo ninguna fila afectada
-      if (result.affectedRows === 0) return null;
+      // Inicio la Transacción
+      await connection.beginTransaction();
 
       // Verificamos la existencia de los géneros de las películas y obtenemos sus IDs registrados en la BD
       const genreIds = [];
@@ -89,55 +85,96 @@ export class MoviesModel {
         );
 
         // Esto de que si NO existe el género puede ir en las Validaciones, pero hariamos un SELECT a todos los géneros para validar eso
-        if (result.length === 0) return null;
+        if (result.length === 0) {
+          const error = new Error(`Èl género ${genreName} no existe.`);
+          error.statusCode = 404;
+          throw error;
+        }
 
         genreIds.push(result[0].id);
       }
 
-      // Insertamos el ID de las Películas y el ID de sus Géneros en la tabla movie_genres
+      // Insertamos la película en la Base de Datos
+      const [result] = await pool.query(
+        "INSERT INTO movie (id, title, year, director, duration, poster, rate) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [id, title, year, director, duration, poster, rate]
+      );
+      // Si el affectRows es 0 quiere decir que NO hubo ninguna fila afectada
+      if (result.affectedRows === 0) {
+        const error = new Error("Error al almacenar la película.");
+        error.statusCode = 500;
+        throw error;
+      }
+
+      // Insertamos el ID de la Película y el ID de sus Géneros en la tabla movie_genres
       for (const genreId of genreIds) {
-        await pool.query(
+        const [result] = await pool.query(
           "INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)",
           [id, genreId]
         );
+
+        if (result.affectedRows === 0) {
+          console.error(
+            "Error al insertar en la tabla movie_genres -> Método create de movies.model.js."
+          );
+          throw new Error();
+        }
       }
 
-      // Obtenemos la película insertada usando su ID
-      const [movie] = await pool.query("SELECT * FROM movie WHERE id = ?", [
-        id,
-      ]);
+      // Hago commit para confirmar todas las operaciones hechas hasta el momento
+      await connection.commit(); // Se finaliza la Transacción con el commit
 
-      if (movie.length === 0) return null;
+      // Devolvemos la película recién creada (Usamos la misma conexión porque aún no es liberada)
+      const [movie] = await connection.query(
+        "SELECT * FROM movie WHERE id = ?",
+        [id]
+      );
+
+      if (movie.length === 0) {
+        throw new Error("Error al recuperar la película creada.");
+      }
+
+      // Añadimos los géneros a la película antes de devolverla
+      await addMovieGenres(movie);
 
       return movie[0];
-    } catch (err) {
-      console.error("Error en create de movies.model.js ", err.message);
-      throw err;
+    } catch (error) {
+      // Hago rollback en caso ocurra un error durante la transacción
+      await connection.rollback();
+      console.error("Error en create de movies.model.js ", error.message);
+      throw error;
+    } finally {
+      // Libero la conexión, y esta se devuelve al pool de conexiones
+      connection.release();
     }
   }
 
   static async delete({ id }) {
     try {
-      // Eliminamos la película de la tabla movie_genres
-      const [result1] = await pool.query(
-        "DELETE FROM movie_genres WHERE movie_id = ?",
+      // Verificamos la existencia de la película
+      const [movieExists] = await pool.query(
+        "SELECT id FROM movie WHERE id = ?",
         [id]
       );
 
-      if (result1.affectedRows === 0) return null;
+      // Si no existe la película:
+      if (movieExists.length === 0) {
+        const error = new Error("La película no existe.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // Eliminamos la película de la tabla movie_genres
+      await pool.query("DELETE FROM movie_genres WHERE movie_id = ?", [id]);
 
       // Eliminamos la película de la tabla movie
-      const [result2] = await pool.query("DELETE FROM movie WHERE id = ?", [
-        id,
-      ]);
-
-      if (result2.affectedRows === 0) return null;
+      await pool.query("DELETE FROM movie WHERE id = ?", [id]);
 
       // Si queremos que se devuelva la Película eliminada, debemos hacer un SELECT
-      return true;
-    } catch (err) {
-      console.log("Error en delete de movies.model.js", err.message);
-      throw err;
+      return "Eliminación exitosa";
+    } catch (error) {
+      console.log("Error en delete de movies.model.js", error.message);
+      throw error;
     }
   }
 

@@ -38,10 +38,10 @@ export class MoviesController {
 
       // Si los datos no son válidos:
       if (validatedData.error) {
-        return res.status(400).json({
-          message: "Data not validated",
-          error: validatedData.error.issues,
-        });
+        const error = new Error();
+        error.message = validatedData.error.issues;
+        error.statusCode = 400;
+        throw error;
       }
 
       // Si los datos son válidos:
@@ -49,13 +49,10 @@ export class MoviesController {
         validatedData: validatedData.data,
       });
 
-      if (!newMovie)
-        return res.status(400).json({ message: "Error inserting movie" });
-
       res.status(201).json(newMovie);
     } catch (error) {
-      console.error("", error.message);
-      res.status(500).json({ message: error.message });
+      console.error("Error en create de movies.controller.js");
+      next(error);
     }
   }
 
@@ -63,11 +60,10 @@ export class MoviesController {
     try {
       const { id } = req.params;
       const result = await MoviesModel.delete({ id });
-      if (!result) return res.status(404).json({ message: "Movie not found" });
-      res.status(200).json({ message: "Eliminación exitosa" });
+      res.status(200).json({ message: result });
     } catch (error) {
-      console.error("", error.message);
-      res.status(500).json({ message: error.message });
+      console.error("Error en delete de movies.controller.js", error.message);
+      next(error);
     }
   }
 

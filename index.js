@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
-import { router as routerMovies } from "./routes/movies.routes.js";
-import { router as routerGenres } from "./routes/genres.routes.js";
-import { PORT } from "./config/config.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
+import { router as routerMovies } from "./src/routes/movies.routes.js";
+import { router as routerGenres } from "./src/routes/genres.routes.js";
+import { PORT } from "./src/config/config.js";
+import { errorHandler } from "./src/middlewares/errorHandler.js";
 
 const app = express();
 
