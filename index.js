@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import morgan from "morgan";
 import { router as routerMovies } from "./src/routes/movies.routes.js";
 import { router as routerGenres } from "./src/routes/genres.routes.js";
@@ -10,6 +11,7 @@ const app = express();
 
 app.disable("x-powered-by"); // Deshabilitamos la cabecera X-Powered-By: Express
 app.use(cors()); // Este middleware soluciona el problemas del CORS, pero coloca por defecto "*"
+app.use(helmet()); // Este middleware agregará cabeceras para mejorar la seguridad
 app.use(morgan("dev"));
 app.use(express.json()); // Middleware que convierte el CUERPO de la Solicitud en un Objeto/Array de JS
 
