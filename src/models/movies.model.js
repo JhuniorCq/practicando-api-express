@@ -79,7 +79,7 @@ export class MoviesModel {
       const genreIds = [];
 
       for (const genreName of genre) {
-        const [result] = await pool.query(
+        const [result] = await connection.query(
           "SELECT id FROM genre WHERE LOWER(name) = ?",
           [genreName.toLowerCase()]
         );
@@ -95,7 +95,7 @@ export class MoviesModel {
       }
 
       // Insertamos la película en la Base de Datos
-      const [result] = await pool.query(
+      const [result] = await connection.query(
         "INSERT INTO movie (id, title, year, director, duration, poster, rate) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [id, title, year, director, duration, poster, rate]
       );
@@ -108,7 +108,7 @@ export class MoviesModel {
 
       // Insertamos el ID de la Película y el ID de sus Géneros en la tabla movie_genres
       for (const genreId of genreIds) {
-        const [result] = await pool.query(
+        const [result] = await connection.query(
           "INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)",
           [id, genreId]
         );
