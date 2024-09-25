@@ -178,6 +178,7 @@ export class MoviesModel {
     }
   }
 
+  // En partiallyUpdate falta cambiar eso de los envíos de "null", ya que debemos lanzar un ERROR en vez de eso
   static async partiallyUpdate({ id, validatedData }) {
     try {
       // Creamos dos arrays, uno para almacenar los Campos a Actualizar y el otro para los Valores con los cuales se actualizarán
@@ -217,34 +218,46 @@ export class MoviesModel {
   }
 
   static async fullyUpdate({ id, validatedData }) {
+    const connection = pool.getConnection();
     try {
       const { title, year, director, duration, poster, rate, genre } =
         validatedData;
 
+      // Inicio de la Transaccón
+      await connection.beginTransaction();
+
       // Verificamos si la película existe (usando su ID)
-      const [movieExists] = await pool.query(
+      const [movieExists] = await connection.query(
         "SELECT id FROM movie WHERE id = ?",
         [id]
       );
 
-      if (movieExists.length === 0) return null;
+      if (movieExists.length === 0) {
+        const error = new Error(`La película ${id} no existe.`);
+        error.statusCode = 404;
+        throw error;
+      }
 
       // Verificamos si los géneros existen (creo que esto ya no estaría si validamos esta existencia en movieValidations.js)
       const genreIds = [];
       // - Obtenemos el ID de cada uno de los géneros que nos pasaron
       for (const genreName of genre) {
-        const [genreId] = await pool.query(
+        const [genreId] = await connection.query(
           "SELECT id FROM genre WHERE LOWER(name) = ?",
           [genreName.toLowerCase()]
         );
 
-        if (genreId.length === 0) return null; // En todos estos casos que retornamos null, creo que mejor sería retornar un objeto con la propiedad "error"
+        if (genreId.length === 0) {
+          const error = new Error(`El género ${genreName} no existe.`);
+          error.statusCode = 404;
+          throw error;
+        } // En todos estos casos que retornamos null, creo que mejor sería retornar un objeto con la propiedad "error"
 
         genreIds.push(genreId[0].id);
       }
 
       // Actualizamos la tabla movie
-      const [resultUpdate] = await pool.query(
+      const [resultUpdate] = await connection.query(
         `
         UPDATE movie
         SET
@@ -259,31 +272,54 @@ export class MoviesModel {
         [title, year, director, duration, poster, rate, id]
       );
 
-      if (resultUpdate.affectedRows === 0) return null; // Se entrará acá si el id del movie NO existe
+      if (resultUpdate.affectedRows === 0) {
+        const error = new Error("No se pudo actualizar la película.");
+        error.statusCode = 500;
+        throw error;
+      } // Se entrará acá si el id del movie NO existe
       console.log("Actualizando movie: ", resultUpdate);
 
-      // Actualizamos la tabla movie_genres -> Eliminamos los géneros ya existentes
-      const [resultDelete] = await pool.query(
+      // Actualizamos la tabla movie_genres -> Eliminamos los géneros ya existentes (en sí a todas las filas que correspondan a esta película)
+      const [resultDelete] = await connection.query(
         "DELETE FROM movie_genres WHERE movie_id = ?",
         [id]
       );
-      if (resultDelete.affectedRows === 0) return null;
+      if (resultDelete.affectedRows === 0) {
+        const error = new Error(
+          "Error al eliminar las filas correspondientes a la película en movie_genres."
+        );
+        error.statusCode = 500;
+        throw error;
+      }
       console.log("Eliminando géneros de movie_genres: ", resultDelete);
 
       // Insertamos el ID de la película y de sus géneros en movie_genres
       for (const genreId of genreIds) {
-        const [resultInsert] = await pool.query(
+        const [resultInsert] = await connection.query(
           "INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?)",
           [id, genreId]
         );
-        if (resultInsert.affectedRows === 0) return null;
+        if (resultInsert.affectedRows === 0) {
+          const error = new Error("Error al insertar en movie_genres.");
+          error.statusCode = 500;
+          throw error;
+        }
         console.log("Insertando en movie_genres: ", resultInsert);
       }
 
+      // Hago commit para confirmar todas las operaciones
+      await connection.commit();
+
+      // Este retorno del true ya no será necesario creo
       return true;
     } catch (err) {
+      // Hago rollback en caso ocurra un error durante la transacción
+      await connection.rollback();
       console.error("Error en fullyUpdate de movies.mode.js ", err.message);
       throw err;
+    } finally {
+      // Libero la conexión que usé para la trasacción
+      connection.release();
     }
   }
 }

@@ -104,10 +104,10 @@ export class MoviesController {
       const validatedData = validateMovie(req.body);
 
       if (validatedData.error) {
-        return res.status(400).json({
-          message: "Data not validated",
-          error: validatedData.error.issues,
-        });
+        const error = new Error();
+        error.message = validatedData.error.issues;
+        error.statusCode = 400;
+        throw error;
       }
 
       const { id } = req.params;
@@ -117,18 +117,21 @@ export class MoviesController {
         validatedData: validatedData.data,
       });
 
-      if (!updateMovie) {
-        return res
-          .status(404)
-          .json({ message: "Error when modifying completely" });
-      }
+      // if (!updateMovie) {
+      //   return res
+      //     .status(404)
+      //     .json({ message: "Error when modifying completely" });
+      // }
 
       res
         .status(200)
         .json({ message: `Se actualizó completamente la película ${id}` });
     } catch (error) {
-      console.error("", error.message);
-      res.status(500).json({ message: error.message });
+      console.error(
+        "Error en fullyUpdate de movies.controller.js",
+        error.message
+      );
+      next(error);
     }
   }
 }
