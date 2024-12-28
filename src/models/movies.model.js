@@ -65,8 +65,9 @@ export class MoviesModel {
   }
 
   static async create({ validatedData }) {
-    const connection = await pool.getConnection(); // Obtengo una conexión del pool
+    let connection;
     try {
+      connection = await pool.getConnection(); // Obtengo una conexión del pool
       const { title, year, director, duration, poster, rate, genre } =
         validatedData;
 
@@ -99,7 +100,8 @@ export class MoviesModel {
         "INSERT INTO movie (id, title, year, director, duration, poster, rate) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [id, title, year, director, duration, poster, rate]
       );
-      // Si el affectRows es 0 quiere decir que NO hubo ninguna fila afectada
+
+      // Si el affectedRows es 0 quiere decir que NO hubo ninguna fila afectada
       if (result.affectedRows === 0) {
         const error = new Error("Error al almacenar la película.");
         error.statusCode = 500;
@@ -140,12 +142,16 @@ export class MoviesModel {
       return movie[0];
     } catch (error) {
       // Hago rollback en caso ocurra un error durante la transacción
-      await connection.rollback();
+      if (connection) {
+        await connection.rollback();
+      }
       console.error("Error en create de movies.model.js ", error.message);
       throw error;
     } finally {
       // Libero la conexión, y esta se devuelve al pool de conexiones
-      connection.release();
+      if (connection) {
+        connection.release();
+      }
     }
   }
 
